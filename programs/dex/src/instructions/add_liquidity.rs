@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
+use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer, MintTo};
 use crate::state::Pool;
 use crate::error::ErrorCode;
 
@@ -110,7 +110,30 @@ pub fn handler(ctx: Context<AddLiquidity>, a_amount: u64, b_amount: u64, min_lp_
     );
     token::transfer(cpi_b, b_amount)?;
 
+    // Update dex vault tracked reserve values
+    let pool = &mut ctx.accounts.pool;
+    pool.reserve_a = pool.reserve_a.checked_add(a_amount).ok_or(ErrorCode::Overflow)?;
+    pool.reserve_b = pool.reserve_b.checked_add(b_amount).ok_or(ErrorCode::Overflow)?;
 
+    // References necessary for PDA
+    let mint_a_key = ctx.accounts.token_mint_a.key();
+    let mint_b_key = ctx.accounts.token_mint_b.key();
+    let bump = ctx.accounts.pool.bump;
+
+    // Creating PDA seed
+    let seeds: &[&[&[u8]]] = &[&[b"pool", mint_a_key.as_ref(), mint_b_key.as_ref(), &[bump]]];
+
+    // Building lp mint/transfer CPI context and firing
+    let cpi_mint = CpiContext::new_with_signer(
+        ctx.accounts.token_program.key(),
+        MintTo {
+            mint: ctx.accounts.lp_mint.to_account_info(),
+            to: ctx.accounts.user_lp.to_account_info(),
+            authority: ctx.accounts.pool.to_account_info(),
+        },
+        seeds
+    );
+    token::mint_to(cpi_mint, lp_to_mint)?;
 
     Ok(())
 }
