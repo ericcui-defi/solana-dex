@@ -18,4 +18,8 @@ pub mod dex {
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         initialize::handler(ctx)
     }
+
+    pub fn add_liquidity(ctx: Context<AddLiquidity>, a_amount: u64, b_amount: u64, min_lp_out: u64) -> Result<()> {
+        add_liquidity::handler(ctx, a_amount, b_amount, min_lp_out)
+    }
 }
