@@ -75,9 +75,6 @@ pub fn handler(ctx: Context<RemoveLiquidity>, lp_amount: u64) -> Result<()> {
     let a_reserve = ctx.accounts.pool.reserve_a;
     let b_reserve = ctx.accounts.pool.reserve_b;
 
-    // u64 pre-withdrawal LP token supply
-    let supply = ctx.accounts.lp_mint.supply;
-
     // Calculating token a and token b payout amount
     let token_a_payout = (lp_amount as u128  * a_reserve as u128) / ctx.accounts.lp_mint.supply as u128;
     let token_b_payout = (lp_amount as u128 * b_reserve as u128) / ctx.accounts.lp_mint.supply as u128;
