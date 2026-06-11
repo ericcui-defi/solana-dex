@@ -19,4 +19,7 @@ pub enum ErrorCode {
 
     #[msg("HighBPS")]
     HighBPS,
+
+    #[msg("ZeroWithdrawal")]
+    ZeroWithdrawal,
 }
