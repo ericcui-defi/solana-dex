@@ -76,19 +76,26 @@ pub fn handler(ctx: Context<Swap>, a_to_b: bool, in_amount: u64) -> Result<()> {
         Transfer {
             from: user_in.to_account_info(),
             to: vault_in.to_account_info(),
-            authority: user_in.to_account_info(),
+            authority: ctx.accounts.user.to_account_info(),
         }
     );
-    token::transfer(cpi_in, in_eff as u64)?;
+    token::transfer(cpi_in, in_amount)?;
 
-    // Transferrinf pool funds to user
-    let cpi_out = CpiContext::new(
+    // Creating PDA seed
+    let mint_a_key = ctx.accounts.pool.token_mint_a;
+    let mint_b_key = ctx.accounts.pool.token_mint_b;
+    let bump = ctx.accounts.pool.bump;
+    let seeds: &[&[&[u8]]] = &[&[b"pool", mint_a_key.as_ref(), mint_b_key.as_ref(), &[bump]]];
+
+    // Transferring pool funds to user
+    let cpi_out = CpiContext::new_with_signer(
         ctx.accounts.token_program.key(),
         Transfer {
             from: vault_out.to_account_info(),
             to: user_out.to_account_info(),
             authority: ctx.accounts.pool.to_account_info(),
-        }
+        },
+        seeds
     );
     token::transfer(cpi_out, out as u64)?;
     Ok(())
