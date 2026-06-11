@@ -16,4 +16,7 @@ pub enum ErrorCode {
 
     #[msg("Overflow")]
     Overflow,
+
+    #[msg("HighBPS")]
+    HighBPS,
 }

@@ -1,6 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer, MintTo};
-use solana_keypair::keypair_from_seed;
+use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 use crate::state::Pool;
 use crate::error::ErrorCode;
 
@@ -56,7 +55,10 @@ pub struct Swap<'info> {
     pub token_program: Program<'info, Token>,
 }
 
-pub fn handler(ctx: Context<Swap>, a_to_b: bool, in_amount: u64) -> Result<()> {
+pub fn handler(ctx: Context<Swap>, a_to_b: bool, in_amount: u64, min_out: u64) -> Result<()> {
+
+    // Ensuring against zero deposited funds
+    require!(in_amount > 0, ErrorCode::ZeroDeposit);
 
     let (a, b, vault_in, vault_out, user_in, user_out) = if a_to_b {
         (ctx.accounts.pool.reserve_a as u128, ctx.accounts.pool.reserve_b as u128, &ctx.accounts.token_vault_a, &ctx.accounts.token_vault_b, &ctx.accounts.user_a, &ctx.accounts.user_b)
@@ -69,6 +71,8 @@ pub fn handler(ctx: Context<Swap>, a_to_b: bool, in_amount: u64) -> Result<()> {
     
     // Calculating payout
     let out = (b * in_eff) / (a + in_eff);
+    require!(out > 0, ErrorCode::LPDust);
+    require!(out as u64 >= min_out, ErrorCode::SlippageExceeded);
 
     // Transferring user funds into pool
     let cpi_in = CpiContext::new(
@@ -98,5 +102,16 @@ pub fn handler(ctx: Context<Swap>, a_to_b: bool, in_amount: u64) -> Result<()> {
         seeds
     );
     token::transfer(cpi_out, out as u64)?;
+
+    // Reserve updates
+    let pool = &mut ctx.accounts.pool;
+    if a_to_b {
+        pool.reserve_a = pool.reserve_a.checked_add(in_amount).ok_or(ErrorCode::Overflow)?;
+        pool.reserve_b = pool.reserve_b.checked_sub(out as u64).ok_or(ErrorCode::Overflow)?;
+    } else {
+        pool.reserve_b = pool.reserve_b.checked_add(in_amount).ok_or(ErrorCode::Overflow)?;
+        pool.reserve_a = pool.reserve_a.checked_sub(out as u64).ok_or(ErrorCode::Overflow)?;
+    }
+
     Ok(())
 }

@@ -22,4 +22,8 @@ pub mod dex {
     pub fn add_liquidity(ctx: Context<AddLiquidity>, a_amount: u64, b_amount: u64, min_lp_out: u64) -> Result<()> {
         add_liquidity::handler(ctx, a_amount, b_amount, min_lp_out)
     }
+
+    pub fn swap(ctx: Context<Swap>, a_to_b: bool, in_amount: u64, min_out: u64) -> Result<()> {
+        swap::handler(ctx, a_to_b, in_amount, min_out)
+    }
 }

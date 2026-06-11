@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use crate::state::Pool;
+use crate::error::ErrorCode;
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
@@ -64,6 +65,8 @@ pub struct Initialize<'info> {
 }
 
 pub fn handler(ctx: Context<Initialize>, fee_bps: u16) -> Result<()> {
+
+    require!(fee_bps < 10_000, ErrorCode::HighBPS);
     
     let pool = &mut ctx.accounts.pool;
     pool.token_mint_a = ctx.accounts.token_mint_a.key();
