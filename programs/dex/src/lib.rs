@@ -15,8 +15,8 @@ declare_id!("BZX5d8ghr3p5Q3wHe3HdDZgcY91FEbBsA1Qtb7FippfT");
 pub mod dex {
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-        initialize::handler(ctx)
+    pub fn initialize(ctx: Context<Initialize>, fee_bps: u16) -> Result<()> {
+        initialize::handler(ctx, fee_bps)
     }
 
     pub fn add_liquidity(ctx: Context<AddLiquidity>, a_amount: u64, b_amount: u64, min_lp_out: u64) -> Result<()> {

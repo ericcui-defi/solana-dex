@@ -63,7 +63,7 @@ pub struct Initialize<'info> {
 
 }
 
-pub fn handler(ctx: Context<Initialize>) -> Result<()> {
+pub fn handler(ctx: Context<Initialize>, fee_bps: u16) -> Result<()> {
     
     let pool = &mut ctx.accounts.pool;
     pool.token_mint_a = ctx.accounts.token_mint_a.key();
@@ -73,6 +73,7 @@ pub fn handler(ctx: Context<Initialize>) -> Result<()> {
     pool.lp_mint = ctx.accounts.lp_mint.key();
     pool.reserve_a = 0;
     pool.reserve_b = 0;
+    pool.fee_bps = fee_bps;
     pool.bump = ctx.bumps.pool;
     Ok(())
 }

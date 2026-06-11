@@ -23,9 +23,9 @@ pub struct AddLiquidity<'info> {
 
     // References to the custodying TokenAccounts of the DEX to update reserve_* values
     #[account(mut)]
-    pub token_vault_a: Account<'info, TokenAccount>,
+    pub token_vault_a: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
-    pub token_vault_b: Account<'info, TokenAccount>,
+    pub token_vault_b: Box<Account<'info, TokenAccount>>,
 
     // Reference to token_a custodying account
     #[account(
@@ -33,7 +33,7 @@ pub struct AddLiquidity<'info> {
         token::mint = token_mint_a,
         token::authority = user,
     )]
-    pub user_a: Account<'info, TokenAccount>,
+    pub user_a: Box<Account<'info, TokenAccount>>,
 
     // Reference to token_b custodying account
     #[account(
@@ -41,7 +41,7 @@ pub struct AddLiquidity<'info> {
         token::mint = token_mint_b,
         token::authority = user,
     )]
-    pub user_b: Account<'info, TokenAccount>,
+    pub user_b: Box<Account<'info, TokenAccount>>,
 
     // Reference to user lp token account
     #[account(
@@ -49,15 +49,15 @@ pub struct AddLiquidity<'info> {
         token::mint = lp_mint,
         token::authority = user,
     )]
-    pub user_lp: Account<'info, TokenAccount>,
+    pub user_lp: Box<Account<'info, TokenAccount>>,
 
     // Reference to LP mint
     #[account(mut)]
-    pub lp_mint: Account<'info, Mint>,
+    pub lp_mint: Box<Account<'info, Mint>>,
 
     // Read-only references to the token mints trading in this DEX
-    pub token_mint_a: Account<'info, Mint>,
-    pub token_mint_b: Account<'info, Mint>,
+    pub token_mint_a: Box<Account<'info, Mint>>,
+    pub token_mint_b: Box<Account<'info, Mint>>,
 
     // Reference to orchestrating token program
     pub token_program: Program<'info, Token>,

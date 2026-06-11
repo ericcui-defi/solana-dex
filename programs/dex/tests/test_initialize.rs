@@ -1,4 +1,3 @@
-
 use {
     anchor_lang::{
         solana_program::{
@@ -58,7 +57,11 @@ fn test_initialize() {
     let mint_b = create_mint(&mut svm, &payer, 6);
 
     // Sorting?
-    let (mint_a, mint_b) = if mint_a < mint_b { (mint_a, mint_b) } else { (mint_b, mint_a) };
+    let (mint_a, mint_b) = if mint_a < mint_b { 
+        (mint_a, mint_b) 
+    } else { 
+        (mint_b, mint_a) 
+    };
 
     // Deriving PDAs
     let (pool, _) = Pubkey::find_program_address(
@@ -80,7 +83,7 @@ fn test_initialize() {
 
     let instruction = Instruction::new_with_bytes(
         program_id,
-        &dex::instruction::Initialize {}.data(),
+        &dex::instruction::Initialize { fee_bps: 30 }.data(),
         dex::accounts::Initialize {
             payer: payer.pubkey(),
             token_mint_a: mint_a,
@@ -90,8 +93,7 @@ fn test_initialize() {
             token_vault_b: token_vault_b,
             lp_mint: lp_mint,
             system_program: system_program::ID,
-            token_program: spl_token::ID
-
+            token_program: spl_token::ID,
         }.to_account_metas(None),
     );
 
