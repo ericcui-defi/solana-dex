@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer, MintTo};
 use crate::state::Pool;
 use crate::error::ErrorCode;
+use crate::constants::MINIMUM_LIQUIDITY;
 
 #[derive(Accounts)]
 pub struct AddLiquidity<'info> {
@@ -83,6 +84,10 @@ pub fn handler(ctx: Context<AddLiquidity>, a_amount: u64, b_amount: u64, min_lp_
     } else {
         (a_amount as u128 * supply as u128 / a_reserve as u128).min(b_amount as u128 * supply as u128 / b_reserve as u128) as u64
     };
+
+    if supply == 0 {
+        require!(lp_to_mint > MINIMUM_LIQUIDITY, ErrorCode::PoolTooSmall);
+    }
 
     // Min LP out + dust check
     require!(lp_to_mint >= min_lp_out, ErrorCode::SlippageExceeded);

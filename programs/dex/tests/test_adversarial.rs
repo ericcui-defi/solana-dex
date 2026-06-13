@@ -89,7 +89,7 @@ fn mint_tokens(svm: &mut LiteSVM, payer: &Keypair, mint: &Pubkey, token_account:
 
 
 #[test]
-fn test_add_liquidity() {
+fn test_adversarial_reverse_pool() {
 
     // Chain intialization
     let program_id = dex::id();
@@ -103,8 +103,8 @@ fn test_add_liquidity() {
     let mint_a = create_mint(&mut svm, &payer, 6);
     let mint_b = create_mint(&mut svm, &payer, 6);
 
-    // Sorting?
-    let (mint_a, mint_b) = if mint_a < mint_b {
+    // Adversarial sorting
+    let (mint_b, mint_a) = if mint_a < mint_b {
         (mint_a, mint_b)
     } else {
         (mint_b, mint_a)
@@ -128,6 +128,7 @@ fn test_add_liquidity() {
         &program_id
     );
 
+    // Initializing pool
     let instruction = Instruction::new_with_bytes(
         program_id,
         &dex::instruction::Initialize { fee_bps: 30 }.data(),
@@ -150,78 +151,11 @@ fn test_add_liquidity() {
     let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), &[&payer]).unwrap();
 
     let res = svm.send_transaction(tx);
-    assert!(res.is_ok());
+    assert!(res.is_err());
 
-    // Create token accounts
-    let user_a = create_token_account(&mut svm, &payer, &mint_a, &payer.pubkey());
-    let user_b = create_token_account(& mut svm, &payer, &mint_b, &payer.pubkey());
+    let err = res.unwrap_err();
+    assert!(err.meta.logs.join("\n").contains("UnorderedMints"));
 
-    let balance_a = 10000;
-    let balance_b = 10000;
-    let add_a = 5000;
-    let add_b = 5000;
-
-    // Funding token accounts
-    // u64 implemented Copy so we can just directly pass in the variable names (they are not consumed by the function)
-    mint_tokens(&mut svm, &payer, &mint_a, &user_a, balance_a);
-    mint_tokens(&mut svm, &payer, &mint_b, &user_b, balance_b);
-
-    // Creating user lp account
-    let user_lp = create_token_account(&mut svm, &payer, &lp_mint, &payer.pubkey());
-
-    let add_liquidity_instruction = Instruction::new_with_bytes(
-        program_id,
-        &dex::instruction::AddLiquidity { a_amount: add_a, b_amount: add_b, min_lp_out: 1}.data(),
-        dex::accounts::AddLiquidity {
-            user: payer.pubkey(),
-            pool: pool,
-            token_vault_a: token_vault_a,
-            token_vault_b: token_vault_b,
-            user_a: user_a,
-            user_b: user_b,
-            user_lp: user_lp,
-            lp_mint: lp_mint,
-            token_mint_a: mint_a,
-            token_mint_b: mint_b,
-            token_program: spl_token::ID
-        }.to_account_metas(None),
-    );
-
-    // Running liquidity add
-    let blockhash = svm.latest_blockhash();
-    let msg = Message::new_with_blockhash(&[add_liquidity_instruction], Some(&payer.pubkey()), &blockhash);
-    let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), &[&payer]).unwrap();
-    let res = svm.send_transaction(tx);
-
-    // Assertions
-    if let Err(e) = &res {
-        panic!("add_liquidity failed: {:?}\nlogs:\n{}", e.err, e.meta.logs.join("\n"));
-    }
-
-    // Asserting user vault account balances were properly decremented
-    let data = svm.get_account(&user_a).unwrap().data;
-    let user_a_state = Account::unpack(&data).unwrap();
-    assert_eq!(user_a_state.amount, balance_a - add_a);
-
-    let data = svm.get_account(&user_b).unwrap().data;
-    let user_b_state = Account::unpack(&data).unwrap();
-    assert_eq!(user_b_state.amount, balance_b - add_b);
-
-    // Asserting pool state was properly updated
-    let data = svm.get_account(&pool).unwrap().data;
-    let pool_state = dex::Pool::try_deserialize(&mut data.as_slice()).unwrap();
-    assert_eq!(pool_state.reserve_a, add_a);
-    assert_eq!(pool_state.reserve_b, add_b);
-
-    // Calculating number of lp tokens that should have bene minted with initial addition
-    let lp_minted = (add_a * add_b).isqrt();
-
-    // Asserting user's LP balance
-    let data = svm.get_account(&user_lp).unwrap().data;
-    let user_lp_state = Account::unpack(&data).unwrap();
-    assert_eq!(user_lp_state.amount, lp_minted);
-
-    // Asserting lp mint amount
-    let lp_mint_state = SplMint::unpack(&svm.get_account(&lp_mint).unwrap().data).unwrap();
-    assert_eq!(lp_mint_state.supply, lp_minted);
+    // Assert no state survived
+    assert!(svm.get_account(&pool).is_none());
 }

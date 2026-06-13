@@ -66,8 +66,13 @@ pub struct Initialize<'info> {
 
 pub fn handler(ctx: Context<Initialize>, fee_bps: u16) -> Result<()> {
 
+    // Reasonable fee
     require!(fee_bps < 10_000, ErrorCode::HighBPS);
-    
+
+    // Enforcing mint address ordering
+    require!(ctx.accounts.token_mint_a.key() < ctx.accounts.token_mint_b.key(), ErrorCode::UnorderedMints);
+
+    // Populating pool fields
     let pool = &mut ctx.accounts.pool;
     pool.token_mint_a = ctx.accounts.token_mint_a.key();
     pool.token_mint_b = ctx.accounts.token_mint_b.key();

@@ -22,4 +22,10 @@ pub enum ErrorCode {
 
     #[msg("ZeroWithdrawal")]
     ZeroWithdrawal,
+
+    #[msg("UnorderedMints")]
+    UnorderedMints,
+
+    #[msg("PoolTooSmall")]
+    PoolTooSmall,
 }

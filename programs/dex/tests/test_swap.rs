@@ -156,10 +156,10 @@ fn test_swap() {
     let user_a = create_token_account(&mut svm, &payer, &mint_a, &payer.pubkey());
     let user_b = create_token_account(& mut svm, &payer, &mint_b, &payer.pubkey());
 
-    let balance_a = 1000;
-    let balance_b = 1000;
-    let add_a = 500;
-    let add_b = 500;
+    let balance_a = 10000;
+    let balance_b = 10000;
+    let add_a = 5000;
+    let add_b = 5000;
 
     // Funding token accounts
     // u64 implemented Copy so we can just directly pass in the variable names (they are not consumed by the function)
@@ -229,15 +229,15 @@ fn test_swap() {
     // Assert users A token balance is 100 less
     let data = svm.get_account(&user_a).unwrap().data;
     let user_a_state = Account::unpack(&data).unwrap();
-    assert_eq!(user_a_state.amount, 400);
+    assert_eq!(user_a_state.amount, 4900);
 
     // Asserting user got paid the appropriate number of B tokens
     let data = svm.get_account(&user_b).unwrap().data;
     let user_b_state = Account::unpack(&data).unwrap();
-    assert_eq!(user_b_state.amount, 582);
+    assert_eq!(user_b_state.amount, 5097);
 
     let data = svm.get_account(&pool).unwrap().data;
     let pool_state = dex::Pool::try_deserialize(&mut data.as_slice()).unwrap();
-    assert_eq!(pool_state.reserve_a, 600);
-    assert_eq!(pool_state.reserve_b, 418);
+    assert_eq!(pool_state.reserve_a, 5100);
+    assert_eq!(pool_state.reserve_b, 4903);
 }

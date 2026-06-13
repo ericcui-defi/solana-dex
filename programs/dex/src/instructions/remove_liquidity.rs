@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer, Burn};
 use crate::state::Pool;
 use crate::error::ErrorCode;
+use crate::constants::MINIMUM_LIQUIDITY;
 
 #[derive(Accounts)]
 pub struct RemoveLiquidity<'info> {
@@ -68,7 +69,10 @@ pub fn handler(ctx: Context<RemoveLiquidity>, lp_amount: u64) -> Result<()> {
     // Verifying nonzero removal
     require!(lp_amount > 0, ErrorCode::ZeroWithdrawal);
 
+    let remaining = ctx.accounts.lp_mint.supply.checked_sub(lp_amount).ok_or(ErrorCode::Overflow)?;
+
     // Verify user actually has the amount of liquidity they are trying to withdraw
+    require!(remaining == 0 || remaining >= MINIMUM_LIQUIDITY, ErrorCode::PoolTooSmall);
     
 
     // References to a and b dex vault token amounts

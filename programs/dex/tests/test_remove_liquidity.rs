@@ -156,10 +156,10 @@ fn test_remove_liquidity() {
     let user_a = create_token_account(&mut svm, &payer, &mint_a, &payer.pubkey());
     let user_b = create_token_account(& mut svm, &payer, &mint_b, &payer.pubkey());
 
-    let balance_a = 1000;
-    let balance_b = 1000;
-    let add_a = 500;
-    let add_b = 500;
+    let balance_a = 10000;
+    let balance_b = 10000;
+    let add_a = 5000;
+    let add_b = 5000;
 
     // Funding token accounts
     // u64 implemented Copy so we can just directly pass in the variable names (they are not consumed by the function)
@@ -257,25 +257,24 @@ fn test_remove_liquidity() {
     // Asserting user vault account balances were properly incremented
     let data = svm.get_account(&user_a).unwrap().data;
     let user_a_state = Account::unpack(&data).unwrap();
-    assert_eq!(user_a_state.amount, 510);
+    assert_eq!(user_a_state.amount, 5010);
 
     let data = svm.get_account(&user_b).unwrap().data;
     let user_b_state = Account::unpack(&data).unwrap();
-    assert_eq!(user_b_state.amount, 510);
+    assert_eq!(user_b_state.amount, 5010);
 
     // Asserting pool state was properly updated
     let data = svm.get_account(&pool).unwrap().data;
     let pool_state = dex::Pool::try_deserialize(&mut data.as_slice()).unwrap();
-    assert_eq!(pool_state.reserve_a, 490);
-    assert_eq!(pool_state.reserve_b, 490);
+    assert_eq!(pool_state.reserve_a, 4990);
+    assert_eq!(pool_state.reserve_b, 4990);
 
     // Asserting user's LP balance
     let data = svm.get_account(&user_lp).unwrap().data;
     let user_lp_state = Account::unpack(&data).unwrap();
-    assert_eq!(user_lp_state.amount, 490);
+    assert_eq!(user_lp_state.amount, 4990);
 
     // Asserting lp mint amount
     let lp_mint_state = SplMint::unpack(&svm.get_account(&lp_mint).unwrap().data).unwrap();
-    assert_eq!(lp_mint_state.supply, 490);
-
+    assert_eq!(lp_mint_state.supply, 4990);
 }
