@@ -159,3 +159,114 @@ fn test_adversarial_reverse_pool() {
     // Assert no state survived
     assert!(svm.get_account(&pool).is_none());
 }
+
+#[test]
+fn test_adversarial_pool_too_small() {
+
+    // Chain intialization
+    let program_id = dex::id();
+    let payer = Keypair::new();
+    let mut svm = LiteSVM::new();
+    let bytes = include_bytes!("../../../target/deploy/dex.so");
+    svm.add_program(program_id, bytes).unwrap();
+    svm.airdrop(&payer.pubkey(), 5_000_000_000).unwrap();
+
+    // Creating mock mints for the two tokens in the pool
+    let mint_a = create_mint(&mut svm, &payer, 6);
+    let mint_b = create_mint(&mut svm, &payer, 6);
+
+    // Sorting
+    let (mint_a, mint_b) = if mint_a < mint_b {
+        (mint_a, mint_b)
+    } else {
+        (mint_b, mint_a)
+    };
+
+    // Deriving PDAs
+    let (pool, _) = Pubkey::find_program_address(
+        &[b"pool", mint_a.as_ref(), mint_b.as_ref()],
+        &program_id
+    );
+    let (token_vault_a, _) = Pubkey::find_program_address(
+        &[b"vault_a", pool.as_ref()],
+        &program_id
+    );
+    let (token_vault_b, _) = Pubkey::find_program_address(
+        &[b"vault_b", pool.as_ref()],
+        &program_id
+    );
+    let (lp_mint, _) = Pubkey::find_program_address(
+        &[b"lp", pool.as_ref()],
+        &program_id
+    );
+
+    // Initializing pool
+    let instruction = Instruction::new_with_bytes(
+        program_id,
+        &dex::instruction::Initialize { fee_bps: 30 }.data(),
+        dex::accounts::Initialize {
+            payer: payer.pubkey(),
+            token_mint_a: mint_a,
+            token_mint_b: mint_b,
+            pool: pool,
+            token_vault_a: token_vault_a,
+            token_vault_b: token_vault_b,
+            lp_mint: lp_mint,
+            system_program: system_program::ID,
+            token_program: spl_token::ID
+        }.to_account_metas(None),
+    );
+
+    // Initializing program
+    let blockhash = svm.latest_blockhash();
+    let msg = Message::new_with_blockhash(&[instruction], Some(&payer.pubkey()), &blockhash);
+    let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), &[&payer]).unwrap();
+
+    let res = svm.send_transaction(tx);
+    assert!(res.is_ok());
+
+    // Create token accounts
+    let user_a = create_token_account(&mut svm, &payer, &mint_a, &payer.pubkey());
+    let user_b = create_token_account(&mut svm, &payer, &mint_b, &payer.pubkey());
+
+    let balance_a = 100;
+    let balance_b = 100;
+    let add_a = 100;
+    let add_b = 100;
+
+    // Funding token accounts
+    mint_tokens(&mut svm, &payer, &mint_a, &user_a, balance_a);
+    mint_tokens(&mut svm, &payer, &mint_b, &user_b, balance_b);
+
+    // Creating user lp account
+    let user_lp = create_token_account(&mut svm, &payer, &lp_mint, &payer.pubkey());
+
+    let add_liquidity_instruction = Instruction::new_with_bytes(
+        program_id,
+        &dex::instruction::AddLiquidity { a_amount: add_a, b_amount: add_b, min_lp_out: 1 }.data(),
+        dex::accounts::AddLiquidity {
+            user: payer.pubkey(),
+            pool: pool,
+            token_vault_a: token_vault_a,
+            token_vault_b: token_vault_b,
+            user_a: user_a,
+            user_b: user_b,
+            user_lp: user_lp,
+            lp_mint: lp_mint,
+            token_mint_a: mint_a,
+            token_mint_b: mint_b,
+            token_program: spl_token::ID
+        }.to_account_metas(None),
+    );
+
+    // Running liquidity add
+    let blockhash = svm.latest_blockhash();
+    let msg = Message::new_with_blockhash(&[add_liquidity_instruction], Some(&payer.pubkey()), &blockhash);
+    let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), &[&payer]).unwrap();
+    
+    let res = svm.send_transaction(tx);
+    assert!(res.is_err());
+
+    let err = res.unwrap_err();
+    assert!(err.meta.logs.join("\n").contains("PoolTooSmall"));
+}

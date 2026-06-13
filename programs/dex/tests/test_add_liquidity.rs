@@ -154,7 +154,7 @@ fn test_add_liquidity() {
 
     // Create token accounts
     let user_a = create_token_account(&mut svm, &payer, &mint_a, &payer.pubkey());
-    let user_b = create_token_account(& mut svm, &payer, &mint_b, &payer.pubkey());
+    let user_b = create_token_account(&mut svm, &payer, &mint_b, &payer.pubkey());
 
     let balance_a = 10000;
     let balance_b = 10000;
