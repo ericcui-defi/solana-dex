@@ -9,8 +9,10 @@ Each pool holds two SPL tokens and maintains the constant-product invariant `x �
 Key design points:
 
 - **Pool, vaults, and LP mint are all PDAs.** The pool is derived from `["pool", mint_a, mint_b]`; the vaults and LP mint are derived from the pool. The pool PDA is the authority over its vaults and LP mint, signing CPIs via `invoke_signed`.
+- **Canonical mint ordering.** `initialize` requires `mint_a.key() < mint_b.key()`, so exactly one pool address can ever exist for a given pair — no fragmentation, no decoy pools.
 - **Cached reserves.** Swap and liquidity math uses `pool.reserve_a/b` (program-tracked state), never the raw vault balances, so donating tokens to a vault can't manipulate prices.
 - **First deposit mints `sqrt(a · b)` LP tokens** (geometric mean — the unique swap-invariant liquidity measure); later deposits mint `min(a · supply / reserve_a, b · supply / reserve_b)`, so off-ratio deposits donate the excess to existing LPs instead of enabling a drain.
+- **MINIMUM_LIQUIDITY floor.** First deposit must mint more than 1000 LP shares, and `remove_liquidity` rejects any withdrawal that would leave LP supply in `(0, 1000)`. Keeps the supply-1 inflation attack permanently unreachable, both at pool birth and via subsequent exits.
 - **Fees are implicit.** Swaps quote output on the fee-discounted input (`in_eff = in · (10000 − fee_bps) / 10000`) but deposit the full input, so `k` grows with every trade. LPs realize fees on withdrawal via pro-rata payout.
 - **Slippage protection** via client-computed floors (`min_lp_out`, `min_out`) passed as instruction arguments.
 - All math uses u128 intermediates and checked arithmetic.
@@ -36,7 +38,7 @@ programs/dex/src/
     ├── add_liquidity.rs
     ├── swap.rs
     └── remove_liquidity.rs
-programs/dex/tests/     # LiteSVM integration tests (one per instruction)
+programs/dex/tests/     # LiteSVM integration tests — one per instruction, plus test_adversarial.rs
 ```
 
 ## Building and testing
@@ -50,11 +52,16 @@ cargo test     # run LiteSVM integration tests
 
 Tests run against [LiteSVM](https://github.com/LiteSVM/litesvm), a lightweight in-process Solana VM — no local validator needed. Each test deploys the compiled program, builds raw instructions from Anchor's generated `instruction`/`accounts` modules, and asserts full post-state: user balances, vault balances, cached reserves, and LP supply.
 
+`test_adversarial.rs` covers failure paths:
+
+- Reverse-ordered mints rejected with `UnorderedMints`; no pool state survives
+- Sub-floor first deposit (`sqrt(a · b) ≤ 1000`) rejected with `PoolTooSmall`
+
 ## Known simplifications
 
 Deliberate omissions, since this is a learning build:
 
-- No `MINIMUM_LIQUIDITY` burn on first deposit (Uniswap v2's inflation-attack guard)
-- Canonical mint ordering (`mint_a < mint_b`) is not enforced on-chain; clients sort
 - `remove_liquidity` has no slippage floors (`min_a_out` / `min_b_out`)
 - Fee is per-pool but fixed at initialization; no protocol fee
+- No `emit!` events for indexers
+- No frontend / TypeScript client
