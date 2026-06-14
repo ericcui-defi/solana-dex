@@ -1,8 +1,65 @@
+# ============================================================================
+# Build artifacts & dependencies
+# ============================================================================
 .anchor
-.DS_Store
 target
 **/*.rs.bk
 node_modules
 test-ledger
 .yarn
 .surfpool
+
+# Frontend build output
+app/dist
+app/build
+app/.vite
+
+# ============================================================================
+# Secrets — anything that could leak an API key, private key, or wallet
+# ============================================================================
+
+# Vite / Node env files. Allow .env.example (non-secret template) only.
+.env
+.env.*
+!.env.example
+
+# Solana / Anchor program keypairs anywhere outside target/ (target/ is already
+# ignored above, but keypairs can be copied or generated elsewhere).
+*-keypair.json
+*.keypair.json
+wallet*.json
+id.json
+keypair.json
+
+# Generic secret-bearing file extensions
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.json
+credentials.json
+service-account*.json
+
+# Local Solana CLI config that may hold an active keypair
+.config/solana/
+
+# ============================================================================
+# Editor / OS noise
+# ============================================================================
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+Thumbs.db
+
+# ============================================================================
+# Logs
+# ============================================================================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

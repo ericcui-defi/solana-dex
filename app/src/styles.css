@@ -1,0 +1,568 @@
+/* ============================================================================
+ * Solana DEX — visual system
+ *   palette: deep black base, Solana purple (#9945FF) → green (#14F195) accent
+ *   feel:    glass surfaces, generous radii, spring easing, subtle motion
+ * ========================================================================== */
+
+:root {
+  --bg: #07070b;
+  --surface: rgba(255, 255, 255, 0.025);
+  --surface-strong: rgba(255, 255, 255, 0.04);
+  --border: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --text: #f5f5f7;
+  --text-muted: rgba(245, 245, 247, 0.55);
+  --text-faint: rgba(245, 245, 247, 0.32);
+
+  --sol-purple: #9945ff;
+  --sol-green: #14f195;
+  --sol-gradient: linear-gradient(135deg, #9945ff 0%, #14f195 100%);
+
+  --warn: #ffb547;
+  --err: #ff5c7c;
+
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 20px;
+  --r-full: 999px;
+}
+
+* { box-sizing: border-box; }
+
+::selection { background: rgba(153, 69, 255, 0.4); color: var(--text); }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+               "Inter", "Segoe UI", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "ss01", "cv11";
+  letter-spacing: -0.005em;
+  min-height: 100vh;
+}
+
+/* Drifting gradient mesh — fixed to the viewport, slow ambient motion. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -20%;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 20% 25%, rgba(153, 69, 255, 0.22), transparent 45%),
+    radial-gradient(circle at 80% 65%, rgba(20, 241, 149, 0.14), transparent 45%),
+    radial-gradient(circle at 55% 90%, rgba(153, 69, 255, 0.1), transparent 50%);
+  filter: blur(40px);
+  animation: drift 32s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(-3%, 2%) scale(1.05); }
+  66%      { transform: translate(2%, -2%) scale(0.97); }
+}
+
+/* Subtle grain — adds the "techy" texture without being noisy. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='1'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  opacity: 0.5;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+/* ============================================================================
+ * Layout
+ * ========================================================================== */
+
+.root {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 56px 24px 96px;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+  gap: 24px;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  background: var(--sol-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  /* Slow color sweep gives the wordmark life without distracting. */
+  background-size: 200% 200%;
+  animation: hue-sweep 8s ease-in-out infinite;
+}
+
+@keyframes hue-sweep {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+.meta {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  min-width: 0;
+}
+
+.rpc {
+  font-family: ui-monospace, "SF Mono", monospace;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.45;
+}
+
+.pubkey {
+  font-family: ui-monospace, "SF Mono", monospace;
+  padding: 6px 12px;
+  border-radius: var(--r-full);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+/* Idle glow on the connect button — telegraphs "your move". */
+.meta > button {
+  animation: idle-glow 2.6s ease-in-out infinite;
+}
+
+@keyframes idle-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(153, 69, 255, 0); }
+  50%      { box-shadow: 0 0 24px 2px rgba(153, 69, 255, 0.35),
+                          0 0 48px 4px rgba(20, 241, 149, 0.15); }
+}
+
+/* ============================================================================
+ * Nav (tabs)
+ * ========================================================================== */
+
+nav {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  padding: 4px;
+  background: var(--surface);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  width: fit-content;
+}
+
+nav button {
+  background: transparent;
+  border: 0;
+  padding: 8px 18px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--r-full);
+  transition: color 0.25s var(--ease), background 0.25s var(--ease);
+  font-family: inherit;
+}
+
+nav button:hover { color: var(--text); }
+
+nav button.active {
+  color: var(--text);
+  background: var(--surface-strong);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+/* ============================================================================
+ * Panel — frosted glass card
+ * ========================================================================== */
+
+.panel {
+  position: relative;
+  background: var(--surface);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 28px;
+  animation: panel-in 0.5s var(--ease) both;
+  overflow: hidden;
+}
+
+/* Soft inner highlight along the top edge — gives the glass dimension. */
+.panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+  pointer-events: none;
+}
+
+@keyframes panel-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.panel h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 20px;
+  line-height: 1.55;
+}
+
+/* ============================================================================
+ * Form controls
+ * ========================================================================== */
+
+label {
+  display: block;
+  margin-bottom: 16px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 500;
+}
+
+input {
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--text);
+  font-family: ui-monospace, "SF Mono", monospace;
+  font-size: 13px;
+  letter-spacing: -0.005em;
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease),
+              box-shadow 0.2s var(--ease);
+}
+
+input::placeholder { color: var(--text-faint); }
+
+input:hover { border-color: var(--border-strong); }
+
+input:focus {
+  outline: none;
+  border-color: rgba(153, 69, 255, 0.5);
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: 0 0 0 4px rgba(153, 69, 255, 0.12);
+}
+
+/* ============================================================================
+ * Buttons — primary uses the Solana gradient
+ * ========================================================================== */
+
+button {
+  background: var(--sol-gradient);
+  background-size: 180% 180%;
+  background-position: 0% 50%;
+  color: #0a0a0c;
+  border: 0;
+  border-radius: var(--r-md);
+  padding: 11px 22px;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.2s var(--ease-spring), box-shadow 0.3s var(--ease),
+              background-position 0.5s var(--ease), opacity 0.2s var(--ease);
+  will-change: transform;
+}
+
+button:hover {
+  background-position: 100% 50%;
+  transform: translateY(-1px);
+  box-shadow:
+    0 4px 16px rgba(153, 69, 255, 0.35),
+    0 12px 40px rgba(20, 241, 149, 0.18);
+}
+
+button:active { transform: translateY(0); transition-duration: 0.05s; }
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  /* Disabled buttons get a soft shimmer when they're a busy/loading state. */
+  animation: pending-shimmer 1.8s linear infinite;
+}
+
+@keyframes pending-shimmer {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.25); }
+}
+
+/* Secondary buttons — quieter than the gradient primary. */
+button[type="button"] {
+  background: var(--surface-strong);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  animation: none;
+}
+
+button[type="button"]:hover {
+  background: rgba(255, 255, 255, 0.07);
+  transform: translateY(-1px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+              0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.row { display: flex; gap: 10px; margin-top: 4px; }
+
+/* ============================================================================
+ * Status / output blocks
+ * ========================================================================== */
+
+.status {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border);
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  margin-top: 14px;
+  font-size: 12px;
+  font-family: ui-monospace, "SF Mono", monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--text-muted);
+  line-height: 1.55;
+  animation: panel-in 0.3s var(--ease) both;
+}
+
+/* ============================================================================
+ * Pool inspector — tables
+ * ========================================================================== */
+
+.pool-inspector {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: panel-in 0.4s var(--ease) both;
+}
+
+.pool-inspector table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+
+.pool-inspector th, .pool-inspector td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.2s var(--ease);
+}
+
+.pool-inspector tr:last-child th, .pool-inspector tr:last-child td { border-bottom: 0; }
+
+.pool-inspector tbody tr:hover td,
+.pool-inspector tbody tr:hover th { background: rgba(255, 255, 255, 0.025); }
+
+.pool-inspector thead th {
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.pool-inspector tbody th {
+  color: var(--text-muted);
+  font-weight: 500;
+  width: 110px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pool-inspector .mono {
+  font-family: ui-monospace, "SF Mono", monospace;
+  word-break: break-all;
+  color: var(--text);
+  font-feature-settings: "tnum";
+}
+
+.pool-inspector .diff {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+/* ============================================================================
+ * Section dividers within a panel
+ * ========================================================================== */
+
+.section {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  animation: panel-in 0.4s var(--ease) both;
+}
+
+.section h3 {
+  margin: 0 0 14px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+}
+
+.section table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.section table th, .section table td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.2s var(--ease);
+}
+
+.section table tbody tr:hover td,
+.section table tbody tr:hover th { background: rgba(255, 255, 255, 0.025); }
+
+.section table tbody th {
+  color: var(--text-muted);
+  font-weight: 500;
+  width: 110px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.section table tr:last-child th, .section table tr:last-child td { border-bottom: 0; }
+
+.section .mono {
+  font-family: ui-monospace, "SF Mono", monospace;
+  word-break: break-all;
+  font-feature-settings: "tnum";
+}
+
+.section .muted {
+  color: var(--text-faint);
+  font-size: 11px;
+  margin-left: 6px;
+}
+
+.section label .muted {
+  display: block;
+  margin: 6px 0 0 0;
+  font-size: 11px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ============================================================================
+ * Toggle — A → B / B → A
+ * ========================================================================== */
+
+.toggle {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  margin-bottom: 18px;
+  width: fit-content;
+}
+
+.toggle button {
+  flex: 1;
+  background: transparent;
+  color: var(--text-muted);
+  border: 0;
+  padding: 10px 24px;
+  border-radius: var(--r-full);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  letter-spacing: 0.01em;
+  transition: color 0.25s var(--ease), background 0.4s var(--ease),
+              box-shadow 0.4s var(--ease);
+  animation: none;
+  box-shadow: none;
+}
+
+.toggle button:hover { color: var(--text); transform: none; }
+
+.toggle button.active {
+  color: #0a0a0c;
+  background: var(--sol-gradient);
+  background-size: 180% 180%;
+  background-position: 50% 50%;
+  font-weight: 600;
+  box-shadow: 0 2px 12px rgba(153, 69, 255, 0.4),
+              0 0 24px rgba(20, 241, 149, 0.2);
+}
+
+/* ============================================================================
+ * Focus rings for keyboard nav
+ * ========================================================================== */
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid rgba(153, 69, 255, 0.6);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+ * Custom scrollbar (Webkit) — barely there
+ * ========================================================================== */
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--r-full);
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
